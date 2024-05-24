@@ -2,6 +2,7 @@ import json
 import pickle
 import numpy as np
 import streamlit as st
+import geopy.geocoders
 from geopy.geocoders import Nominatim
 import folium
 from streamlit_folium import st_folium
