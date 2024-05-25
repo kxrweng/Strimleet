@@ -45,6 +45,10 @@ def find_state_value(json_data, state_name):
             return json_data[state].get("le_state", None)
     return None
 
+def generate_deviation(average_price, deviation_percentage=0.1):
+    deviation = average_price * deviation_percentage * random.uniform(-1, 1)
+    return average_price + deviation
+
 # Streamlit app code
 st.title("USA Real Estate Price Prediction")
 
@@ -59,58 +63,83 @@ st.sidebar.title("Input Features")
 bedrooms = st.sidebar.number_input("Number of bedroom", value=3, min_value=2, max_value=5)
 bathrooms = st.sidebar.number_input("Number of bathroom", value=2, min_value=1, max_value=4)
 acrelot = st.sidebar.number_input("Acre lot (in acres)", value=1.0, min_value=0.0, max_value=1.2)
-house_size = st.sidebar.number_input("House Size (in square feet)", value=600, min_value=100, max_value=4363) 
+house_size = st.sidebar.number_input("House Size (in square feet)", value=600, min_value=100, max_value=4363)
 selected_state = st.sidebar.selectbox("State", list(state_city_data.keys()))
 
-# Correct the line to populate selected_cities with city names
-selected_cities = state_city_data.get(selected_state, [])
+# Ensure selected_cities is not None
+selected_cities = state_city_data.get(selected_state, {"cities": []})
+
+if "cities" in selected_cities:
+    selected_city = st.sidebar.selectbox("City", selected_cities["cities"])
+else:
+    selected_city = st.sidebar.selectbox("City", [])
 
 # Getting city numerical value from mapping
-selected_city = st.sidebar.selectbox("City", selected_cities["cities"])
-city_value = find_city_value(state_city_data, selected_city)
+city_value = find_city_value(state_city_data, selected_city) if selected_city else None
 
 # Getting state numerical value from mapping
 state_value = find_state_value(state_city_data, selected_state)
-
-# Prepare input data for prediction
-input_data = np.array([[bedrooms, bathrooms, acrelot, house_size, state_value, city_value]])
-
-
-# Load the model and encoders from the pickle file
-with open('predict_model.pkl', 'rb') as file:
-    data = pickle.load(file)
-
-rf_model = data["model"]
-# x = np.array([[3, 3, 0.7, 3, 10, 3852]])
-# st.write("Trial Input : ", rf_model.predict(x) )
-
 
 # Initialize session state
 if "predictions" not in st.session_state:
     st.session_state["predictions"] = None
 if "random_points" not in st.session_state:
     st.session_state["random_points"] = None
+if "point_predictions" not in st.session_state:
+    st.session_state["point_predictions"] = None
+if "average_prediction" not in st.session_state:
+    st.session_state["average_prediction"] = None
 
-def update_predictions():
-    st.session_state["predictions"] = rf_model.predict(input_data)
-    st.session_state["random_points"] = get_random_points(selected_state, selected_city, num_points=100)
+if city_value is not None and state_value is not None:
+    # Prepare input data for prediction
+    input_data = np.array([[bedrooms, bathrooms, acrelot, house_size, state_value, city_value]])
 
-if st.sidebar.button("Predict"):
-    update_predictions()
+    # Load the model and encoders from the pickle file
+    with open('predict_model.pkl', 'rb') as file:
+        data = pickle.load(file)
 
-if st.session_state["predictions"] is not None:
-    st.write(f"Predicted Price: <span style='color:green; font-size:24px'>{st.session_state['predictions'][0]}</span>", unsafe_allow_html=True)
+    rf_model = data["model"]
 
-if st.session_state["random_points"]:
-    random_points = st.session_state["random_points"]
-    # Initialize the map centered around the first point
-    m = folium.Map(location=[random_points[0][0], random_points[0][1]], zoom_start=12)
-    
-    # Add points to the map
-    for lat, lon in random_points:
-        folium.Marker([lat, lon]).add_to(m)
-    
-    # Display the map in Streamlit
-    st_folium(m, width=700, height=500)
+    def update_predictions():
+        average_price = rf_model.predict(input_data)[0]
+        st.session_state["average_prediction"] = average_price
+
+        random_number = random.randint(1, 100)
+        random_points = get_random_points(selected_state, selected_city, num_points=random_number)
+        st.session_state["random_points"] = random_points
+
+        if random_points is None:
+            st.error("Could not generate random points. Please check the city and state values.")
+            return
+
+        # Generate predictions for each point
+        st.session_state["point_predictions"] = [
+            generate_deviation(average_price) for _ in random_points
+        ]
+
+    if st.sidebar.button("Predict"):
+        update_predictions()
+
+    if st.session_state["average_prediction"] is not None:
+        st.write(f"Average Predicted Price: <span style='color:green; font-size:24px'>${st.session_state['average_prediction']}</span>", unsafe_allow_html=True)
+
+    if st.session_state["random_points"]:
+        random_points = st.session_state["random_points"]
+        point_predictions = st.session_state["point_predictions"]
+
+        # Initialize the map centered around the first point
+        m = folium.Map(location=[random_points[0][0], random_points[0][1]], zoom_start=12)
+
+        # Add points to the map
+        for i, (lat, lon) in enumerate(random_points):
+            folium.Marker(
+                [lat, lon],
+                popup=f"Predicted Price: ${point_predictions[i]:,.2f}"
+            ).add_to(m)
+
+        # Display the map in Streamlit
+        st_folium(m, width=700, height=500)
+    else:
+        st.write("Location not found")
 else:
-    st.write("Location not found")
+    st.write("Please select valid state and city values to get predictions.")
