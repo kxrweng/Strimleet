@@ -12,4 +12,9 @@ print("scikit-learn version:", sklearn.__version__)
 print("folium version:", folium.__version__)
 print("geopy version:", geopy.__version__)
 print("shapely version:", shapely.__version__)
-print("streamlit-folium version:", streamlit_folium.__version__)
+
+# Import and print the version of streamlit-folium
+import pkg_resources
+
+version = pkg_resources.get_distribution("streamlit_folium").version
+print(version)
