@@ -140,6 +140,6 @@ if city_value is not None and state_value is not None:
         # Display the map in Streamlit
         st_folium(m, width=700, height=500)
     else:
-        st.write("Location not found")
+        st.write("Choose a location to predict")
 else:
     st.write("Please select valid state and city values to get predictions.")
