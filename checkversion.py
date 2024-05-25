@@ -14,7 +14,4 @@ print("geopy version:", geopy.__version__)
 print("shapely version:", shapely.__version__)
 
 # Import and print the version of streamlit-folium
-import pkg_resources
 
-version = pkg_resources.get_distribution("streamlit_folium").version
-print(version)
