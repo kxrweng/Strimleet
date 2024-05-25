@@ -55,8 +55,7 @@ st.title("USA Real Estate Price Prediction")
 st.subheader("USA Map")
 
 # Load the JSON data
-json_path = st.secrets["jsoninfo"]["path"]
-with open(json_path, "r") as json_file:
+with open("state&city.json", "r") as json_file:
     state_city_data = json.load(json_file)
 
 # Input form
@@ -96,9 +95,9 @@ if city_value is not None and state_value is not None:
     input_data = np.array([[bedrooms, bathrooms, acrelot, house_size, state_value, city_value]])
 
     # Load the model and encoders from the pickle file
-    model_path = st.secrets["predict_model"]["path"]
-    with open(model_path, 'rb') as file:
+    with open('predict_model.pkl', 'rb') as file:
         data = pickle.load(file)
+
 
     rf_model = data["model"]
 
